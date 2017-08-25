@@ -113,14 +113,16 @@ class Program(object):
                 help="Specify collection name to load."
             ),
             Argument(
-                names=('no-dedupe',),
+                # TODO: phrase as 'dependencies' and default to true? same
+                # effect/flag, different name/value when used post-parsing?
+                names=('no-dependencies',),
                 kind=bool,
                 default=False,
-                help="Disable task deduplication."
+                help="Disable the dependency system.",
             ),
             Argument(
                 names=('root', 'r'),
-                help="Change root directory used for finding task modules."
+                help="Change root directory used for finding task modules.",
             ),
         ]
 

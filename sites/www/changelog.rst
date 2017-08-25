@@ -8,6 +8,60 @@ Changelog
   lifecycle. (Specifically, any config data given to the constructor was not
   visible in the resulting instance until ``merge()`` was explicitly called.)
   This has been fixed, along with other related minor issues.
+* :feature:`461` Expanded/overhauled task execution to provide more
+  functionality & enhance what already existed. Specifically:
+
+  - The original concept of "pre-" and "post-tasks" has been upgraded to use a
+    directed acyclic graph (which fixes some bugs with what used to be called
+    "task deduplication", including :issue:`298`) and renamed to "dependencies"
+    and "followups".
+
+    You may specify dependencies via ``@task(depends_on=[clean,
+    check_config])`` (or, as before, as positional args: ``@task(clean,
+    check_config)``) and followups as ``@task(afterwards=[notify])``. See
+    :ref:`task-execution` for details.
+  - Tasks may declare "checks" that allow their execution to be skipped if
+    specific requirements are already met. This allows not only for classic
+    ``make``-style skipping of already-generated files, but any arbitrary state
+    check - think checks for config settings, database contents, etc.
+
+    This functionality is implemented as new `@task <invoke.tasks.task>`
+    kwargs, ``check`` (takes a single value) and ``checks`` (takes an
+    iterable), which accept callable objects which may return ``True`` ("the
+    check passed") to skip execution of the task.
+
+    For example, decorating a task with ``@task(check=lambda:
+    os.path.exists('/some/artifact')`` will cause the task to be skipped if
+    ``/some/artifact`` already exists.
+
+    Checks are covered in :ref:`the task execution docs <task-execution>` and
+    also in a new module offering built-in checks, `invoke.checks`.
+  - Accompanying these new features, the CLI and config options
+    around deduplication have been replaced with ones controlling whether
+    dependency management and/or task checks are considered. For example, you
+    can temporarily disable checks with ``--no-checks``.
+
+    See the :ref:`CLI <inv>` and :ref:`config <configuration>` docs for
+    details.
+
+  .. warning::
+    These changes are backwards incompatible if you used the ``pre`` and/or
+    ``post`` kwargs to `@task <invoke.tasks.task>`/`~invoke.tasks.Task`; they
+    are now ``depends_on`` and ``afterwards``, respectively.
+
+    Similarly, if you were interacting with task objects directly and accessing
+    their ``.pre`` and ``.post`` attributes, those are now ``.dependencies``
+    and ``.followups``, respectively.
+
+    Task deduplication is gone, and thus so is ``--no-dedupe`` and the
+    ``tasks.no_dedupe`` config option. However, you may now disable the depency
+    system (slightly analogous to disabling deduplication) with
+    ``--no-dependencies``.
+
+    Finally, if you were relying on the incorrect behavior surrounding
+    deduplication of post-tasks (outlined in :issue:`298`) it has been fixed,
+    and you should update your tasks accordingly.
+
 * :release:`0.20.3 <2017-08-04>`
 * :bug:`467` (Arguably also a feature, but since it enables behavior users
   clearly found intuitive, we're considering it a bug.) Split up the parsing
@@ -758,7 +812,7 @@ Changelog
 * :release:`0.8.0 <2014-06-08>`
 * :feature:`135` (also bugs :issue:`120`, :issue:`123`) Implement post-tasks to
   match pre-tasks, and allow control over the arguments passed to both (via
-  `invoke.tasks.call`). For details, see :ref:`pre-post-tasks`.
+  `invoke.tasks.call`).
 
   .. warning::
       Pre-tasks were overhauled a moderate amount to implement this feature;
